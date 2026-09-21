@@ -5,5 +5,5 @@
   "workers_dev": true,
   "preview_urls": true,
   "assets": { "directory": "./public", "binding": "ASSETS" },
-  "d1_databases": [{ "binding": "DB", "database_name": "forum-saumurois-db", "database_id": "00000000-0000-0000-0000-000000000000" }]
+  "d1_databases": [{ "binding": "DB", "database_name": "forum-saumurois-db", "database_id": "7ec9075c-25cf-49be-aa77-821faa54d87b" }]
 }
