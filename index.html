@@ -3,11 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=/public/">
+  <meta name="description" content="Forum saumurois — carte citoyenne des signalements">
   <title>Forum saumurois</title>
-  <script>window.location.replace('/public/');</script>
 </head>
 <body>
-  <p>Redirection vers le <a href="/public/">Forum saumurois</a>…</p>
+  <p>Chargement du Forum saumurois…</p>
+  <script>
+    fetch('/public/index.html', { cache: 'no-store' })
+      .then(response => {
+        if (!response.ok) throw new Error('Impossible de charger l’application');
+        return response.text();
+      })
+      .then(html => {
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(error => {
+        document.body.innerHTML = '<p>Le site n’a pas pu être chargé. Veuillez réessayer.</p>';
+        console.error(error);
+      });
+  </script>
 </body>
 </html>
