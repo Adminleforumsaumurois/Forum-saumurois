@@ -1,72 +1,54 @@
 (() => {
   const original = document.getElementById('address');
   if (!original || original.dataset.autocompleteFix === '1') return;
-
-  // Remplace le champ afin de supprimer l'ancien écouteur qui affichait une seule suggestion.
   const input = original.cloneNode(true);
   input.dataset.autocompleteFix = '1';
   original.replaceWith(input);
-  const oldBox = document.getElementById('addressSuggestions');
-  if (oldBox) oldBox.remove();
-  const oldFixBox = document.getElementById('addressSuggestionsFix');
-  if (oldFixBox) oldFixBox.remove();
-
+  for (const id of ['addressSuggestions','addressSuggestionsFix']) document.getElementById(id)?.remove();
   const box = document.createElement('div');
   box.id = 'addressSuggestionsFix';
-  box.style.cssText = 'display:none;position:relative;z-index:2200;background:#fff;border:1px solid #d7d3cb;border-radius:6px;overflow:hidden;margin-top:-7px;box-shadow:0 4px 12px rgba(0,0,0,.12)';
   input.insertAdjacentElement('afterend', box);
   const style = document.createElement('style');
-  style.textContent = '#addressSuggestionsFix.open{display:block}#addressSuggestionsFix button{display:block;width:100%;padding:11px;border:0;border-bottom:1px solid #eeeae3;background:#fff;text-align:left;font:inherit;font-size:12px;cursor:pointer}#addressSuggestionsFix button:hover,#addressSuggestionsFix button:focus{background:#f0eee8}';
+  style.textContent = '#addressSuggestionsFix{display:none;position:relative;z-index:2200;background:#fff;border:1px solid #d7d3cb;border-radius:6px;overflow:hidden;margin-top:-7px;box-shadow:0 4px 12px rgba(0,0,0,.12)}#addressSuggestionsFix.open{display:block}#addressSuggestionsFix button{display:block;width:100%;padding:11px;border:0;border-bottom:1px solid #eeeae3;background:#fff;text-align:left;font:inherit;font-size:12px;cursor:pointer}#addressSuggestionsFix button:hover,#addressSuggestionsFix button:focus{background:#f0eee8}';
   document.head.appendChild(style);
-
-  let timer = null;
-  let requestId = 0;
-  const hide = () => { box.classList.remove('open'); box.innerHTML = ''; };
-  const streetOnly = value => value.split(',')[0].trim();
-  const showLabel = result => result.display_name || [result.address?.road, result.address?.city || result.address?.town || result.address?.village].filter(Boolean).join(', ');
-
+  let timer = null, requestId = 0;
+  const hide = () => { box.classList.remove('open'); box.replaceChildren(); };
+  const shortLabel = result => {
+    const a = result.address || {};
+    const place = a.city || a.town || a.village || a.municipality || a.hamlet || a.county || '';
+    const road = a.road || a.pedestrian || a.footway || a.path || '';
+    const number = a.house_number ? a.house_number + ' ' : '';
+    const name = a.name && !road ? a.name : '';
+    const main = [number + (road || name)].filter(Boolean).join('');
+    const poi = a.amenity || a.shop || a.tourism || a.historic ? (a.name || result.name || '') : '';
+    const first = poi || main || result.name || result.display_name?.split(',')[0] || '';
+    return [first, place].filter((v,i,arr) => v && arr.indexOf(v)===i).join(', ');
+  };
   input.addEventListener('input', () => {
-    delete input.dataset.lat;
-    delete input.dataset.lon;
-    clearTimeout(timer);
-    const typed = input.value.trim();
-    if (typed.length < 3) { hide(); return; }
-
+    delete input.dataset.lat; delete input.dataset.lon; clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 3) { hide(); return; }
     timer = setTimeout(async () => {
       const current = ++requestId;
       try {
-        const params = new URLSearchParams({
-          format: 'jsonv2',
-          limit: '50',
-          dedupe: '0',
-          addressdetails: '1',
-          countrycodes: 'fr',
-          bounded: '1',
-          viewbox: '-0.35,47.40,0.20,47.05',
-          q: streetOnly(typed)
-        });
-        const response = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), {headers:{Accept:'application/json'}});
+        const response = await fetch('/api/geocode?q=' + encodeURIComponent(q), {headers:{Accept:'application/json'}});
         if (!response.ok) throw new Error('geocoding');
         const results = await response.json();
         if (current !== requestId) return;
-
-        const unique = [];
-        const seen = new Set();
-        for (const result of results) {
+        const unique = [], seen = new Set();
+        for (const result of (Array.isArray(results) ? results : [])) {
           const key = `${Number(result.lat).toFixed(6)},${Number(result.lon).toFixed(6)}`;
           if (!seen.has(key)) { seen.add(key); unique.push(result); }
         }
-
-        box.innerHTML = '';
+        box.replaceChildren();
         unique.slice(0, 20).forEach(result => {
           const button = document.createElement('button');
           button.type = 'button';
-          button.textContent = showLabel(result) || typed;
+          button.textContent = shortLabel(result) || result.display_name || q;
+          button.title = result.display_name || '';
           button.addEventListener('click', () => {
             const lat = Number(result.lat), lon = Number(result.lon);
-            input.value = showLabel(result) || typed;
-            input.dataset.lat = String(lat);
-            input.dataset.lon = String(lon);
+            input.value = shortLabel(result) || result.display_name || q;
             if (typeof setPick === 'function') setPick(lat, lon, input.value);
             if (typeof pickMap !== 'undefined' && pickMap) pickMap.setView([lat, lon], 17);
             hide();
@@ -75,13 +57,8 @@
           box.appendChild(button);
         });
         box.classList.toggle('open', unique.length > 0);
-      } catch (error) {
-        hide();
-      }
-    }, 350);
+      } catch { hide(); }
+    }, 220);
   });
-
-  document.addEventListener('click', event => {
-    if (event.target !== input && !box.contains(event.target)) hide();
-  });
+  document.addEventListener('click', event => { if (event.target !== input && !box.contains(event.target)) hide(); });
 })();
