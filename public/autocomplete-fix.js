@@ -12,7 +12,6 @@
   let timer = null;
   let requestId = 0;
   const hide = () => { box.classList.remove('open'); box.innerHTML = ''; };
-  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   input.addEventListener('input', () => {
     delete input.dataset.lat;
     delete input.dataset.lon;
@@ -22,13 +21,19 @@
     timer = setTimeout(async () => {
       const current = ++requestId;
       try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=fr&addressdetails=1&q=' + encodeURIComponent(query + ', Saumur');
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=50&dedupe=0&addressdetails=1&countrycodes=fr&q=' + encodeURIComponent(query + ', Saumur Val de Loire, France');
         const response = await fetch(url, {headers:{Accept:'application/json'}});
         if (!response.ok) throw new Error('geocoding');
         const results = await response.json();
         if (current !== requestId) return;
+        const unique = [];
+        const seen = new Set();
+        for (const result of results) {
+          const key = `${Number(result.lat).toFixed(6)},${Number(result.lon).toFixed(6)}`;
+          if (!seen.has(key)) { seen.add(key); unique.push(result); }
+        }
         box.innerHTML = '';
-        results.slice(0, 5).forEach(result => {
+        unique.slice(0, 15).forEach(result => {
           const button = document.createElement('button');
           button.type = 'button';
           button.textContent = result.display_name || query;
@@ -44,7 +49,7 @@
           });
           box.appendChild(button);
         });
-        box.classList.toggle('open', results.length > 0);
+        box.classList.toggle('open', unique.length > 0);
       } catch (error) {
         hide();
       }
