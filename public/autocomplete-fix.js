@@ -50,10 +50,10 @@
       const current = ++requestId;
       try {
         const variants = [
-          typed,
           `${typed}, Saumur, France`,
           `${typed}, Saumur Val de Loire, France`,
-          `${typed}, Maine-et-Loire, France`
+          `${typed}, Maine-et-Loire, France`,
+          typed
         ];
         const responses = await Promise.all(variants.map(query =>
           fetch('/api/geocode?' + new URLSearchParams({q: query}), {headers:{Accept:'application/json'}})
