@@ -23,6 +23,7 @@
   let timer = null;
   let requestId = 0;
   const unwanted = /^(France|France métropolitaine|Maine-et-Loire|Pays de la Loire)$/i;
+  const streetPattern = /^(?:\d+\s+)?(?:rue|avenue|av\.?|boulevard|bd\.?|chemin|route|impasse|place|allée|allee|quai|faubourg|square|passage|cours)\b/i;
   const cleanLabel = result => {
     const raw = String(result.display_name || '').split(',').map(x => x.trim()).filter(Boolean);
     const parts = raw.filter(x => !unwanted.test(x));
@@ -49,12 +50,14 @@
     timer = setTimeout(async () => {
       const current = ++requestId;
       try {
-        const variants = [
-          `${typed}, Saumur, France`,
-          `${typed}, Saumur Val de Loire, France`,
-          `${typed}, Maine-et-Loire, France`,
-          typed
-        ];
+        const variants = streetPattern.test(typed)
+          ? [`${typed}, Saumur Val de Loire, France`]
+          : [
+              `${typed}, Saumur, France`,
+              `${typed}, Saumur Val de Loire, France`,
+              `${typed}, Maine-et-Loire, France`,
+              typed
+            ];
         const responses = await Promise.all(variants.map(query =>
           fetch('/api/geocode?' + new URLSearchParams({q: query}), {headers:{Accept:'application/json'}})
             .then(response => response.ok ? response.json() : [])
